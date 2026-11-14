@@ -403,7 +403,7 @@ impl ContentIds {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct FetchResult {
     pub accounts: Vec<RemoteAccount>,
     pub transactions: Vec<RemoteTransaction>,

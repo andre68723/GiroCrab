@@ -55,6 +55,8 @@ public final class AppModel {
     var rules: [Rule] = []
     var history: [DailyBalance] = []
     var connections: [BankConnection] = []
+    /// Login with accounts that another login already delivers: asks which to fetch (#346).
+    var accountSelectionConnection: BankConnection?
     var settings: [SettingEntry] = []
     /// "off" (default), "duckduckgo" or "google" – normalised by the core
     /// (legacy "1"/"true" from the old toggle count as "google").
@@ -429,6 +431,11 @@ public final class AppModel {
         }
         if options.demoSeed {
             openDemoVault()
+            if options.demoSheet == "account-selection" || options.demoSettings == "banks:select" {
+                // a second login reaching accounts the first one delivers (#346)
+                _ = try? vault?.seedDemoAccountSelection()
+                reloadAll()
+            }
             switch options.initialView {
             case "alltag": scope = .everyday
             case "sparplaene", "sparpläne", "investments": scope = .investments
@@ -476,6 +483,9 @@ public final class AppModel {
     /// Screenshot helper: open a sheet pre-filled with fictional data.
     private func presentDemoSheet(_ name: String) {
         switch name {
+        case "account-selection":
+            // choice of accounts another login already delivers (#346)
+            accountSelectionConnection = connections.last
         case "icon-color":
             // the "Symbol & Farbe" popover of the first account (#167)
             if let a = allAccounts.first { iconColorTarget = .account(a.id) }

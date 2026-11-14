@@ -182,6 +182,12 @@ CREATE TABLE IF NOT EXISTS settings (
 #[derive(uniffi::Object)]
 pub struct Vault {
     conn: Mutex<Connection>,
+    pub(crate) pending_account_fetches: Mutex<
+        std::collections::HashMap<
+            i64,
+            (crate::models::ConnectorKind, crate::connectors::FetchResult),
+        >,
+    >,
     path: String,
     /// The master key, kept for sync snapshots and peer merges so the app
     /// doesn't ask the keychain again. Wiped on drop.
@@ -404,6 +410,7 @@ impl Vault {
         let _ = crate::insights::purge_untrusted_logos(&conn);
         Ok(Arc::new(Vault {
             conn: Mutex::new(conn),
+            pending_account_fetches: Mutex::new(std::collections::HashMap::new()),
             path,
             key: Mutex::new(key),
             _open: OpenVault::new(),

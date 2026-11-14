@@ -1657,6 +1657,17 @@
         }
       }
     },
+    "Abrufen: Konto, Umsätze und Dokumente werden über diesen Zugang importiert. Überspringen: nichts davon, bereits gespeicherte Daten bleiben erhalten." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetch: the account, its transactions and documents are imported through this login. Skip: none of that; data already stored is kept."
+          }
+        }
+      }
+    },
     "Aktion" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2934,6 +2945,28 @@
         }
       }
     },
+    "Auswahl der Konten …" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choosing accounts …"
+          }
+        }
+      }
+    },
+    "Auswahl speichern" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save selection"
+          }
+        }
+      }
+    },
     "Auswertungen anzeigen" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3854,6 +3887,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Existing transactions are not duplicated; they only receive the category and note."
+          }
+        }
+      }
+    },
+    "Bereits über „%@“ eingebunden" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already connected via “%@”"
           }
         }
       }
@@ -6154,6 +6198,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Collapsed"
+          }
+        }
+      }
+    },
+    "Einige Konten sind bereits über einen anderen Zugang eingebunden. Wählen Sie, welche über diesen Zugang abgerufen werden sollen. Ohne Auswahl werden sie übersprungen." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some accounts are already connected through another login. Choose which ones to fetch through this login. Without a choice they are skipped."
           }
         }
       }
@@ -9931,6 +9986,17 @@
         }
       }
     },
+    "Konten auswählen – %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose accounts – %@"
+          }
+        }
+      }
+    },
     "Konten ergänzt" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10048,6 +10114,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Link accounts that aren't yet linked to your Enable Banking application on enablebanking.com."
+          }
+        }
+      }
+    },
+    "Kontenauswahl" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account selection"
           }
         }
       }
@@ -12294,6 +12371,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Groups Yet"
+          }
+        }
+      }
+    },
+    "Noch keine Konten abgerufen." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No accounts fetched yet."
           }
         }
       }
@@ -14584,6 +14672,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose Language"
+          }
+        }
+      }
+    },
+    "Später" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Later"
           }
         }
       }
@@ -17891,6 +17990,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apply"
+          }
+        }
+      }
+    },
+    "Übernehmen und fortfahren" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply and continue"
           }
         }
       }

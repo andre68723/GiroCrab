@@ -182,6 +182,9 @@ struct FnzWebSheet: View {
     @State private var progress = ""
     @State private var notice: String?
     @State private var task: Task<Void, Never>?
+    /// Accounts another login already delivers: asked before the documents are downloaded (#346).
+    @State private var choosing = false
+    @State private var askedInFlow = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -201,6 +204,12 @@ struct FnzWebSheet: View {
             }.padding(14)
             Divider()
             PortalWebView(browser: browser).macFrame(minWidth: 760, minHeight: 620)
+                .overlay {
+                    if choosing {
+                        AccountSelectionPanel(connection: connection) { choosing = false }
+                            .background(.background)
+                    }
+                }
             Divider()
             HStack {
                 Button("Schließen", role: .cancel) { task?.cancel(); close() }
@@ -256,6 +265,14 @@ struct FnzWebSheet: View {
                 let totalsOnly = snapshot.data(using: .utf8).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["totalsOnly"] as? Int ?? 0
                 var downloaded = 0
                 var failed = 0
+                // Held-back accounts: ask now, so their documents are fetched (or skipped) accordingly.
+                let open = try await pin.run { try $0.pendingAccountSelectionConnections() }
+                if open.contains(connectionId) {
+                    askedInFlow = true
+                    progress = String(localized: "Auswahl der Konten …")
+                    choosing = true
+                    while choosing { try await Task.sleep(nanoseconds: 200_000_000) }
+                }
                 if includeDocuments {
                     progress = String(localized: "Postkorb und Archiv auflisten …")
                     let list = try await run(FnzScripts.documents)
@@ -302,8 +319,12 @@ struct FnzWebSheet: View {
             // partial failure before a vault file copy – in the vault they were written to.
             await pin.checkpoint()
             running = false
+            choosing = false
             model.documentsVersion += 1
             model.reloadAll()
+            // Skipped ("Später") accounts were already offered in this run.
+            if !askedInFlow { model.checkPendingAccountSelection() }
+            askedInFlow = false
         }
     }
 }

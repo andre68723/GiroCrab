@@ -82,6 +82,10 @@ pub(crate) fn store_fetch(
             .map(|b| b.trim().to_string())
             .find(|b| !b.is_empty())
             .unwrap_or_else(|| generic_bank_name.clone());
+        let (blocked_refs, pending_refs) =
+            super::account_selection::prepare(&tx, kind, connection_id, &data)?;
+        let deferred = (!pending_refs.is_empty())
+            .then(|| super::account_selection::deferred(&data, &pending_refs));
         let mut data = data;
         // safety net for every connector: repair UTF-8/Latin-1 mojibake
         for a in &mut data.accounts {
@@ -139,6 +143,9 @@ pub(crate) fn store_fetch(
         )?;
         let mut new_accounts: Vec<String> = Vec::new();
         for acc in &data.accounts {
+            if blocked_refs.contains(&acc.external_ref) {
+                continue;
+            }
             let existing: Option<i64> = tx
                 .query_row(
                     // includes soft-deleted rows
@@ -286,7 +293,9 @@ pub(crate) fn store_fetch(
         let mut revoked_refs = data.revoked_refs.clone();
         // Archived accounts are the user's business: skipped above even when
         // the bank still delivers them, so they must not count as "missing".
-        let delivered = |r: &str| account_ids.contains_key(r) || archived_ids.contains_key(r);
+        let delivered = |r: &str| {
+            account_ids.contains_key(r) || archived_ids.contains_key(r) || blocked_refs.contains(r)
+        };
         if data.accounts_complete && !data.accounts.is_empty() {
             let mut q = tx.prepare(
                 "SELECT external_ref FROM accounts
@@ -603,7 +612,7 @@ pub(crate) fn store_fetch(
             }
         }
         for d in &data.documents {
-            if archived_ids.contains_key(&d.account_ref) {
+            if archived_ids.contains_key(&d.account_ref) || blocked_refs.contains(&d.account_ref) {
                 continue;
             }
             let by_ref = |tx: &rusqlite::Transaction| -> Option<i64> {
@@ -675,6 +684,13 @@ pub(crate) fn store_fetch(
             [connection_id],
         )?;
         tx.commit()?;
+        if let Some(data) = deferred {
+            vault
+                .pending_account_fetches
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .insert(connection_id, (kind, data));
+        }
         Ok(SyncSummary {
             accounts_updated,
             transactions_imported: imported,

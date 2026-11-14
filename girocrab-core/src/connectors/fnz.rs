@@ -463,6 +463,18 @@ mod tests {
         v.clone()
             .import_fnz_overview(other, fixture().to_string())
             .unwrap();
+        // The same accounts are reachable through the first login: held back until the
+        // user chooses (#346). Choosing "fetch" imports them for this connection too.
+        let refs: Vec<String> = v
+            .connection_account_choices(other)
+            .unwrap()
+            .into_iter()
+            .map(|c| c.account_ref)
+            .collect();
+        assert!(!refs.is_empty());
+        v.clone()
+            .set_connection_account_choices(other, refs)
+            .unwrap();
         assert_eq!(
             v.clone()
                 .pending_fnz_documents(other, format!("[{doc}]"))

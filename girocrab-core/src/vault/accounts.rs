@@ -152,6 +152,14 @@ impl Vault {
             "DELETE FROM settings WHERE key = ?1",
             [crate::connections::pin_key(connection_id)],
         )?;
+        // the account choice of this login (#346): a re-added login starts fresh
+        db.execute(
+            "DELETE FROM settings WHERE key = ?1",
+            [crate::connectors::account_selection::key(
+                db,
+                connection_id,
+            )?],
+        )?;
         Ok(())
     }
 }
@@ -327,6 +335,11 @@ impl Vault {
         let tx = db.unchecked_transaction()?;
         Self::purge_connection(&tx, connection_id)?;
         tx.commit()?;
+        drop(db);
+        self.pending_account_fetches
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&connection_id);
         Ok(())
     }
 

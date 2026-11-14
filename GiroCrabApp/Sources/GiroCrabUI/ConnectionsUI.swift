@@ -281,6 +281,9 @@ struct ConnectionEditSheet: View {
                         }
                     }
                 }
+                Section("Kontenauswahl") {
+                    AccountSelectionList(connection: connection)
+                }
                 Section("Status") {
                     if let st = status {
                         LabeledContent("Konten", value: "\(st.accountCount)")

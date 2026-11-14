@@ -237,6 +237,8 @@ struct QuirionWebSheet: View {
             running = false
             model.documentsVersion += 1
             model.reloadAll()
+            // accounts another login already delivers wait for a choice (#346)
+            model.checkPendingAccountSelection()
         }
     }
 

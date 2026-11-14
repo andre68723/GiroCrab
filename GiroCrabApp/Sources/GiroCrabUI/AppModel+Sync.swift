@@ -371,6 +371,7 @@ extension AppModel {
             }
             quietSyncConnectionID = nil
             reloadAll()
+            checkPendingAccountSelection()
             syncNextInQueue()
         }
     }
@@ -506,6 +507,21 @@ extension AppModel {
             errorAlternatives = productIDAlternatives(for: conn, error: error, secret: retrySecret)
         } else {
             showError(String(localized: "Abruf fehlgeschlagen"), describe(error))
+        }
+    }
+}
+
+extension AppModel {
+    /// Opens the account choice for the first login whose new accounts overlap with
+    /// another login (#346). No-op while a choice is already shown.
+    func checkPendingAccountSelection() {
+        guard accountSelectionConnection == nil else { return }
+        Task { [weak self] in
+            guard let self,
+                  let ids = try? await self.vaultOffMain({ try $0.pendingAccountSelectionConnections() }),
+                  let first = ids.first,
+                  self.accountSelectionConnection == nil else { return }
+            self.accountSelectionConnection = self.connections.first { $0.id == first }
         }
     }
 }
