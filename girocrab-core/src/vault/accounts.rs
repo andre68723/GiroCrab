@@ -604,10 +604,34 @@ impl Vault {
         let ids: Vec<i64> = chosen.iter().map(|a| a.id).collect();
         let today = chrono::Local::now().date_naive();
         let start = today - chrono::Duration::days(days.max(1) as i64 - 1);
+        // Securities depots with a valuation history (`depot_values`) take their course from it;
+        // the walk back over bookings is only for the other accounts, so nothing counts twice.
+        let depot_series = if ids.is_empty() {
+            None
+        } else {
+            crate::depot_values::series(&*self.db()?, &ids, start, today)?
+        };
+        let book_ids: Vec<i64> = ids
+            .iter()
+            .copied()
+            .filter(|id| {
+                depot_series
+                    .as_ref()
+                    .is_none_or(|s| !s.accounts.contains(id))
+            })
+            .collect();
+        // the depots with a history enter with their values of each day, not with today's balance
+        if depot_series.is_some() {
+            balance = chosen
+                .iter()
+                .filter(|a| book_ids.contains(&a.id))
+                .map(|a| a.balance_cents)
+                .sum();
+        }
         let mut per_day: HashMap<String, i64> = HashMap::new();
-        if !ids.is_empty() {
+        if !book_ids.is_empty() {
             let db = self.db()?;
-            for a in &chosen {
+            for a in chosen.iter().filter(|a| book_ids.contains(&a.id)) {
                 let bdate = a.balance_date.trim();
                 if !a.balance_derived && bdate.len() == 10 {
                     let after: i64 = db
@@ -620,7 +644,7 @@ impl Vault {
                     balance += after;
                 }
             }
-            let list = (0..ids.len())
+            let list = (0..book_ids.len())
                 .map(|n| format!("?{}", n + 2))
                 .collect::<Vec<_>>()
                 .join(",");
@@ -629,7 +653,7 @@ impl Vault {
             ))?;
             let date = start.format("%Y-%m-%d").to_string();
             let args: Vec<rusqlite::types::Value> = std::iter::once(date.into())
-                .chain(ids.iter().map(|&i| i.into()))
+                .chain(book_ids.iter().map(|&i| i.into()))
                 .collect();
             let rows = stmt.query_map(rusqlite::params_from_iter(args), |r| {
                 Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
@@ -658,6 +682,17 @@ impl Vault {
             day -= chrono::Duration::days(1);
         }
         out.reverse();
+        // depot values enter directly; a depot adds nothing before its first point. Without other
+        // accounts the history starts on the first day a depot has a value.
+        if let Some(depots) = depot_series {
+            let first_known = depots.covered.iter().position(|&c| c > 0).unwrap_or(0);
+            for (p, v) in out.iter_mut().zip(&depots.values) {
+                p.balance_cents += v;
+            }
+            if book_ids.is_empty() && valuation.is_none() {
+                out.drain(..first_known);
+            }
+        }
         if let Some(values) = valuation {
             let now = values.last().copied().unwrap_or(0);
             for (p, v) in out.iter_mut().zip(values) {
@@ -665,6 +700,51 @@ impl Vault {
             }
         }
         Ok(out)
+    }
+
+    /// Value history of securities depots for the last `days` days, from the first day any of
+    /// them has a value. `account_ids` empty = all depots counted in the total. Each day says
+    /// how many of the depots were covered (see [`crate::models::DepotValuePoint`]); a depot's
+    /// first value starts a new coverage, so the chart can break the line there. Empty when no
+    /// depot has a value.
+    pub fn depot_value_history(
+        &self,
+        account_ids: Vec<i64>,
+        days: u32,
+    ) -> Result<Vec<DepotValuePoint>, CoreError> {
+        let accounts = self.list_accounts()?;
+        let single = account_ids.len() == 1;
+        let ids: Vec<i64> = accounts
+            .iter()
+            .filter(|a| {
+                a.kind == AccountKind::Brokerage
+                    && (single || a.currency == "EUR")
+                    && if account_ids.is_empty() {
+                        a.in_total
+                    } else {
+                        account_ids.contains(&a.id)
+                    }
+            })
+            .map(|a| a.id)
+            .collect();
+        let today = chrono::Local::now().date_naive();
+        let start = today - chrono::Duration::days(days.max(1) as i64 - 1);
+        let Some(series) = crate::depot_values::series(&*self.db()?, &ids, start, today)? else {
+            return Ok(vec![]);
+        };
+        let Some(first) = series.covered.iter().position(|&c| c > 0) else {
+            return Ok(vec![]);
+        };
+        Ok((first..series.values.len())
+            .map(|i| DepotValuePoint {
+                date: (start + chrono::Duration::days(i as i64))
+                    .format("%Y-%m-%d")
+                    .to_string(),
+                value_cents: series.values[i],
+                covered_depots: series.covered[i],
+                total_depots: series.total_depots,
+            })
+            .collect())
     }
 
     pub fn rename_account(&self, account_id: i64, name: String) -> Result<(), CoreError> {

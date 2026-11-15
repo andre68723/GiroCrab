@@ -254,6 +254,8 @@ struct WealthView: View {
     @AppStorage(BalanceBarUnit.defaultsKey) private var cashBarUnit: BalanceBarUnit = .automatic
     @AppStorage("wealth.cashChartCollapsed") private var cashChartCollapsed = false
     @State private var history: [DailyBalance] = []
+    /// Value history of the depots shown in the securities tab (`Vault.depotValueHistory`).
+    @State private var depotHistory: [DepotValuePoint] = []
 
     @State private var ownerFilter = WealthOwnerFilter.all
     /// Every counted account: what is loaded, and what the owner choices are built from.
@@ -400,6 +402,7 @@ struct WealthView: View {
         .task(id: positionsKey(allSummary) + ":\(model.assetClassificationVersion)") { await loadPositions(allSummary.depots, tangibles: allSummary.tangibles) }
         .capturableSheet(item: $editingClassification) { request in AssetClassificationSheet(request: request).environment(model) }
         .task(id: historyKey(s)) { await loadHistory(s.cash.map(\.id)) }
+        .task(id: depotHistoryKey(s)) { await loadDepotHistory(s.depots.map(\.id)) }
         .onAppear {
             // (developer) `--demo-filter wealth:<slice id>`: a selected donut slice for screenshots
             if let wanted = model.options.demoFilter, wanted.hasPrefix("wealth:") { classFilter = String(wanted.dropFirst(7)) }
@@ -536,6 +539,7 @@ struct WealthView: View {
                 }
             }
         }
+        let depotChart = AssetValueChart(content: depotChartContent, currency: "EUR", footnote: DepotValueHistory.footnote)
         // title (and the period of the securities tab) stay on the left on every width
         let heading = VStack(alignment: .leading, spacing: 6) {
             if scope != .all { Text(scope.title).appFont(.title3, weight: .semibold).foregroundStyle(Theme.text) }
@@ -556,6 +560,8 @@ struct WealthView: View {
                     value
                 }
             }
+            // under the title and the total over the full width, as in the depot header
+            if scope == .securities, !s.depots.isEmpty { depotChart }
             details
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1098,15 +1104,44 @@ struct WealthView: View {
 
     // MARK: cash history (area chart, back-calculated from bookings)
 
-    private func cashHistoryCard(_ s: WealthSummary) -> some View {
-        let heading = Text("Cash-Verlauf").appFont(.headline).fixedSize()
-        let range = Picker("Zeitraum", selection: $historyDays) {
+    /// The period of the history cards (cash and depots).
+    private var historyRange: some View {
+        Picker("Zeitraum", selection: $historyDays) {
             Text("3 Monate").tag(90)
             Text("1 Jahr").tag(365)
             Text("3 Jahre").tag(1095)
             Text("5 Jahre").tag(1825)
         }
         .pickerStyle(.segmented).labelsHidden().controlSize(.small).fixedSize()
+    }
+
+    // MARK: depot value history (the values the banks reported and imported values)
+
+    /// A new value or a sync reloads the history; the period only cuts what is shown.
+    private func depotHistoryKey(_ s: WealthSummary) -> String {
+        let depots = s.depots.map { "\($0.id):\($0.balanceCents):\($0.balanceDate)" }.joined(separator: ",")
+        return "\(depots)|" + syncStamp
+    }
+
+    /// The chart of the securities header: the period menu above steers what it shows.
+    private var depotChartContent: AssetValueChart.Content {
+        if depotHistory.isEmpty {
+            return .unavailable(String(localized: "Noch kein Verlauf: der Wert wird ab dem ersten Abruf festgehalten"))
+        }
+        let (from, to) = model.depotPeriodRange
+        return .depot(DepotValueHistory.points(depotHistory, from: from, to: to), from: from, to: to)
+    }
+
+    private func loadDepotHistory(_ ids: [Int64]) async {
+        guard !ids.isEmpty else { depotHistory = []; return }
+        let days = DepotValueHistory.lookbackDays
+        let loaded = try? await model.vaultOffMain { vault in try vault.depotValueHistory(accountIds: ids, days: days) }
+        if !Task.isCancelled, let loaded { depotHistory = loaded }
+    }
+
+    private func cashHistoryCard(_ s: WealthSummary) -> some View {
+        let heading = Text("Cash-Verlauf").appFont(.headline).fixedSize()
+        let range = historyRange
         return VStack(alignment: .leading, spacing: 10) {
             // too narrow for title and range side by side (iPhone): one below the other, so the word is never hyphenated
             ViewThatFits(in: .horizontal) {

@@ -133,7 +133,7 @@ struct TangibleAccountDetailView: View {
             valueLabel: item.map { $0.sold ? String(localized: "Verkauft") : String(localized: "Wert heute") } ?? String(localized: "Wert heute"),
             subtitle: { subtitle },
             valueNote: { EmptyView() },
-            accessory: { AssetValueChart(content: chartContent, currency: currency) },
+            accessory: { AssetValueChart(content: chartContent, currency: currency, footnote: DepotValueHistory.footnote) },
             actions: { actions }
         )
     }
@@ -180,13 +180,19 @@ struct TangibleAccountDetailView: View {
     /// series comes with the selection load: while that is pending it still belongs to the previous
     /// account, so nothing is drawn yet.
     private var chartContent: AssetValueChart.Content {
+        let (from, to) = model.periodRange
+        let history: [DailyBalance]
         if item != nil {
-            let (from, to) = model.periodRange
-            return .points(model.assetStore.selectedHistory.filter { p in
+            history = model.assetStore.selectedHistory.filter { p in
                 (from.map { p.date >= $0 } ?? true) && (to.map { p.date <= $0 } ?? true)
-            })
+            }
+        } else if model.selectionSettled {
+            history = model.history
+        } else {
+            return .loading
         }
-        return model.selectionSettled ? .points(model.history) : .loading
+        // the same chart as the depots: the days before the first holding are no values
+        return .depot(DepotValueHistory.assetPoints(history), from: from, to: to)
     }
 
     @ViewBuilder

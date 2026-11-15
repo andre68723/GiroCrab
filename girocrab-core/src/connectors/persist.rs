@@ -533,6 +533,23 @@ pub(crate) fn store_fetch(
                     params![tx.last_insert_rowid(),remote.classification.asset_class.map(|a|a.as_str()),remote.classification.instrument.map(|a|a.as_str()),remote.direct_crypto])?;
             }
         }
+        // one point of the depot value history per fetched depot (see `depot_values`)
+        for acc_id in by_account.keys() {
+            // the bank delivered the inventory (maybe an empty one): a value of 0 is confirmed
+            crate::depot_values::record(&tx, *acc_id, true)?;
+        }
+        // A depot whose total came without positions (an overview import) has a value too; a 0
+        // there is not confirmed.
+        for acc in &data.accounts {
+            if data.balances_unknown.contains(&acc.external_ref) {
+                continue;
+            }
+            if let Some(id) = account_ids.get(&acc.external_ref) {
+                if !by_account.contains_key(id) {
+                    crate::depot_values::record(&tx, *id, false)?;
+                }
+            }
+        }
         let mut imported = 0u32;
         let mut skipped_archived = 0u32;
         {

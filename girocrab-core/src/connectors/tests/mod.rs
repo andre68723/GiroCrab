@@ -131,6 +131,78 @@ fn unread_depot_keeps_its_positions_and_value() {
 }
 
 #[test]
+fn depot_value_points_follow_what_a_fetch_confirms() {
+    // total without positions, unknown balance, unconfirmed 0, confirmed 0
+    let p_dir = crate::test_support::TempDir::new("girocrab-depot-points");
+    let p = p_dir.join("v.db");
+    let v = Vault::open(p.to_string_lossy().to_string(), vec![3u8; 32]).unwrap();
+    let conn = v
+        .add_bank_connection(ConnectorKind::TradeRepublic, String::new(), "login".into())
+        .unwrap();
+    let depot = |balance_cents: i64, date: &str| RemoteAccount {
+        external_ref: "tr:depot".into(),
+        name: "Depot".into(),
+        owner: String::new(),
+        iban: String::new(),
+        account_number: String::new(),
+        currency: "EUR".into(),
+        kind: AccountKind::Brokerage,
+        balance_cents,
+        balance_date: date.into(),
+    };
+    let points = |v: &Vault| -> Vec<(String, i64)> {
+        let db = v.db().unwrap();
+        let mut q = db
+            .prepare("SELECT value_date, value_cents FROM depot_values ORDER BY value_date")
+            .unwrap();
+        q.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    };
+    let fetch = |accounts, unknown: bool, fetched: bool| FetchResult {
+        accounts,
+        balances_unknown: if unknown {
+            vec!["tr:depot".into()]
+        } else {
+            vec![]
+        },
+        holdings_fetched: if fetched {
+            vec!["tr:depot".into()]
+        } else {
+            vec![]
+        },
+        ..Default::default()
+    };
+
+    // 1. a total without positions (an overview import) is a value
+    let f = fetch(vec![depot(7_000_00, "2026-11-01")], false, false);
+    store_fetch(&v, ConnectorKind::TradeRepublic, conn, f).unwrap();
+    assert_eq!(points(&v), vec![("2026-11-01".to_string(), 7_000_00)]);
+
+    // 2. a balance that was not read leaves no point
+    let f = fetch(vec![depot(0, "2026-11-02")], true, false);
+    store_fetch(&v, ConnectorKind::TradeRepublic, conn, f).unwrap();
+    assert_eq!(points(&v).len(), 1);
+
+    // 3. a 0 without a confirmed inventory may only mean "not reported": no point
+    let f = fetch(vec![depot(0, "2026-11-03")], false, false);
+    store_fetch(&v, ConnectorKind::TradeRepublic, conn, f).unwrap();
+    assert_eq!(points(&v).len(), 1);
+
+    // 4. an inventory that was read and is empty: the 0 is confirmed
+    let f = fetch(vec![depot(0, "2026-11-04")], false, true);
+    store_fetch(&v, ConnectorKind::TradeRepublic, conn, f).unwrap();
+    assert_eq!(
+        points(&v),
+        vec![
+            ("2026-11-01".to_string(), 7_000_00),
+            ("2026-11-04".to_string(), 0)
+        ]
+    );
+}
+
+#[test]
 fn archived_psd2_account_is_not_reported_as_revoked() {
     // #65 (archive) + #66 (revoked marking): an account the user archived
     // is skipped by store_fetch, so it must not look "missing" from a

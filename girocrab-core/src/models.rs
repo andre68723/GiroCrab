@@ -695,6 +695,18 @@ pub struct DailyBalance {
     pub balance_cents: i64,
 }
 
+/// One day of the value history of securities depots (`Vault::depot_value_history`): the sum of
+/// the depots that had a value that day. `covered_depots` of `total_depots` says how complete
+/// the sum is; a depot adds nothing before its first known value (it is not counted as 0).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DepotValuePoint {
+    pub date: String,
+    pub value_cents: i64,
+    pub covered_depots: u32,
+    pub total_depots: u32,
+}
+
 /// Sum of one category (with subcategories) over one calendar day, month or year (`period` = `yyyy-MM-dd`, `yyyy-MM` or `yyyy`).
 #[derive(Debug, Clone, uniffi::Record)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

@@ -32,6 +32,7 @@ pub mod connectors;
 mod data_tables;
 pub mod demo;
 pub mod depot_debug;
+pub mod depot_values;
 pub mod documents;
 pub mod error;
 pub mod export;

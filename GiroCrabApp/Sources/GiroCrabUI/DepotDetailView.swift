@@ -8,6 +8,8 @@ struct DepotData {
     let revision: Int
     let assets: [ClassifiedAsset]
     let transactions: [SecurityTransaction]
+    /// The depot's value history (all of it; the period cuts it for the chart).
+    let valuePoints: [DepotValuePoint]
     var holdings: [Holding] { assets.map(\.holding) }
 }
 
@@ -134,11 +136,12 @@ struct DepotDetailView: View {
         if case .loaded(let d) = load, d.accountId == id, d.revision == revision {} else { load = .loading }
         do {
             let result = try await model.vaultOffMain { vault in
-                (try vault.classifiedAssets(accountId: id), try vault.listSecurityTransactions(accountId: id))
+                (try vault.classifiedAssets(accountId: id), try vault.listSecurityTransactions(accountId: id),
+                 try vault.depotValueHistory(accountIds: [id], days: DepotValueHistory.lookbackDays))
             }
             // nil: locked or swapped meanwhile; a cancelled load never replaces newer data
             guard !Task.isCancelled, let result else { return }
-            load = .loaded(DepotData(accountId: id, revision: revision, assets: result.0, transactions: result.1))
+            load = .loaded(DepotData(accountId: id, revision: revision, assets: result.0, transactions: result.1, valuePoints: result.2))
         } catch {
             guard !Task.isCancelled else { return }
             load = .failed(describe(error))
@@ -185,7 +188,10 @@ struct DepotDetailView: View {
                         .help("Der gemeldete Depotwert und die Summe der Positionen weichen voneinander ab, z. B. durch unterschiedliche Bewertungszeitpunkte.")
                 }
             },
-            accessory: { AssetValueChart(content: valuationHistory, currency: currency) },
+            accessory: {
+                AssetValueChart(content: valuationHistory, currency: currency,
+                                footnote: DepotValueHistory.footnote)
+            },
             actions: { EmptyView() }
         )
     }
@@ -261,12 +267,16 @@ struct DepotDetailView: View {
                              expandedKey: "depotAnalysisExpanded", displayKey: "depotCompositionDisplay")
     }
 
-    /// The depot's valuation history for the header chart. There is no reliable one yet, so the
-    /// chart says so: nothing is derived from bookings or activities and no line is drawn.
-    /// Hook for `feat/depot-value-history`: return `.points(...)` of the period's valuations (and
-    /// `.loading` while the selection loads) here; the header, its layout and the chart need no change.
+    /// The depot's valuation history for the header chart: the values the core holds (the bank's own
+    /// reports at each fetch, imported values), cut to the selected period. Before its first value
+    /// the depot has none: nothing is drawn there, and nothing is derived from bookings.
     private var valuationHistory: AssetValueChart.Content {
-        .unavailable(String(localized: "Bewertungsverlauf noch nicht verfügbar"))
+        guard let data else { return .loading }
+        if data.valuePoints.isEmpty {
+            return .unavailable(String(localized: "Noch kein Verlauf: der Wert wird ab dem ersten Abruf festgehalten"))
+        }
+        let (from, to) = model.depotPeriodRange
+        return .depot(DepotValueHistory.points(data.valuePoints, from: from, to: to), from: from, to: to)
     }
 
     // MARK: activities

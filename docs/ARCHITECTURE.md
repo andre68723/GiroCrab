@@ -13,7 +13,21 @@ and `migrate` runs the missing ones in a single transaction.
 | 9 | `repair_to_v8`: the old probe-based setup, run once, so every vault ends up identical |
 | 10 | opening balances (#212) |
 | 11 | `sync_log`: the Abrufprotokoll (#238), local to the device |
-| 12+ | future changes |
+| 12 | SEPA references of a booking (end-to-end id, mandate reference, creditor id) |
+| 13 | tangible assets (`asset_items`, quantities, values, prices) |
+| 14 | `security_transactions`: orders and distributions of depots, extra `holdings` columns |
+| 15 | product ids of an order's items (#354) |
+| 16 | asset classification (#351, `docs/asset-classification.md`) |
+| 17 | planned transfers |
+| 18 | standing orders |
+| 19 | repair of step 15 for vaults of development builds |
+| 20 | mandates and creditor ids |
+| 21 | kind of a planned transfer (credit / debit) |
+| 22 | return acknowledgement of a mandate |
+| 23 | booking tags (#228) |
+| 24 | a rule restricted to several accounts (#562) |
+| 25 | index `transactions(amount, date)` |
+| 26+ | future changes; the tables of securities depots are described in `docs/DEPOT_DATENMODELL.md` |
 
 **Changing the schema**
 

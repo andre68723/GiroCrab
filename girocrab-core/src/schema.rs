@@ -34,6 +34,7 @@
 //!   lowest id of the set (foreign key / older readers), the table is the source of truth.
 //! - 25: index `tx_amount_date`: the payment-service transfer pairing
 //!   (`vault/transfer_pairs.rs`) looks up counter bookings by amount and date.
+//! - 26: `depot_values`: value of a securities depot per day, one point per fetch.
 //!
 //! Schema changes are a new step at the end of [`STEPS`]; never edit an
 //! existing step. After a bump, run
@@ -75,6 +76,7 @@ const STEPS: &[Step] = &[
     Step::Hook(crate::tags::tags_tables),                      // 23
     Step::Sql(RULE_ACCOUNTS),                                  // 24
     Step::Sql(TX_AMOUNT_DATE),                                 // 25
+    Step::Sql(crate::depot_values::SCHEMA),                    // 26: depot value history
 ];
 
 /// Step 25. Not partial on `deleted_ms IS NULL`: SQLite then picked it for
@@ -616,7 +618,7 @@ mod tests {
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .unwrap();
         assert_eq!(v, SCHEMA_VERSION);
-        assert_eq!(SCHEMA_VERSION, 25);
+        assert_eq!(SCHEMA_VERSION, 26);
     }
 
     /// A vault that an early draft migrated as version 15 (scheduled transfers

@@ -100,6 +100,7 @@ extension AppModel {
         selectionPlaceholderTask?.cancel()
         selectionPlaceholderTask = nil
         isLoadingSelection = false
+        selectionLoadStamp &+= 1
     }
 
     /// The load is slow: empty list and chart, so nothing of the previous

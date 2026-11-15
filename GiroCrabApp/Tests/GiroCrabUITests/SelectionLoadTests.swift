@@ -45,6 +45,20 @@ final class SelectionLoadTests: XCTestCase {
         XCTAssertEqual(model.categories.map(\.totalCents), categories, file: file, line: line)
     }
 
+    /// A load that ends before the placeholder shows never changes `isLoadingSelection`; a view that
+    /// asked `selectionSettled` (the Sachwerte chart) must still be told that the load is over.
+    func testSettledStateIsObservableWhenAFastLoadEndsWithoutAPlaceholder() async throws {
+        model.selectionPlaceholderDelay = .seconds(60)
+        let account = try XCTUnwrap(model.allAccounts.first { $0.kind == .checking })
+        model.interactiveSidebarSelection = .account(account.id)
+        XCTAssertFalse(model.selectionSettled, "the load is running")
+        XCTAssertFalse(model.isLoadingSelection, "and no placeholder shows")
+        let changed = expectation(description: "the settled state notifies its observers")
+        withObservationTracking { _ = model.selectionSettled } onChange: { changed.fulfill() }
+        await fulfillment(of: [changed], timeout: 5)
+        XCTAssertTrue(model.selectionSettled)
+    }
+
     func testInteractiveAccountSwitchLoadsInBackground() async throws {
         let account = try XCTUnwrap(model.allAccounts.first { $0.kind == .checking })
         XCTAssertFalse(model.bookings.isEmpty)

@@ -551,6 +551,10 @@ public final class AppModel {
     /// A selection load has run longer than `selectionPlaceholderDelay`: list and chart are
     /// empty and show the loading placeholder until it publishes.
     var isLoadingSelection = false
+    /// Counts the ends of selection loads. `selectionLoadTask` is not observed, and a load that finishes
+    /// before the placeholder shows never changes `isLoadingSelection`: a view asking `selectionSettled`
+    /// would stay on its loading state. Reading this makes the answer observable.
+    var selectionLoadStamp = 0
     /// Grace period before a running selection load clears the previous data. Loads that
     /// finish sooner (most) swap list, chart and tiles in one step: no empty flash.
     /// Slower ones never leave the old figures under the new title for longer than this.

@@ -38,7 +38,10 @@ extension AppModel {
     var depotPeriodTitle: String { period == .sinceSalary ? Period.all.title : periodTitle }
 
     /// The selection's list, chart and sums are those of the current selection (no load pending).
-    var selectionSettled: Bool { selectionLoadTask == nil && !isLoadingSelection }
+    var selectionSettled: Bool {
+        _ = selectionLoadStamp // observed: the task is not, and a fast load never changes `isLoadingSelection`
+        return selectionLoadTask == nil && !isLoadingSelection
+    }
 
     /// ⌘1…⌘3 / palette: the booking scopes, the depot tabs while a securities depot is shown, and
     /// nothing for Sachwerte (the hidden booking scope must not change unnoticed).
